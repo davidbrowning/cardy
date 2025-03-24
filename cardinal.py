@@ -1,3 +1,4 @@
+# Full updated code for context (merge this with your existing code)
 import pygame
 import random
 
@@ -18,7 +19,7 @@ RIVER_TOP = 300
 RIVER_BOTTOM = 500
 START_Y = 520
 GOAL_SIZE = 40
-JUMP_DISTANCE = TILE_SIZE
+JUMP_DISTANCE = TILE_SIZE * 2
 JUMP_DURATION = 0.5  # seconds
 FPS = 60
 
@@ -61,7 +62,7 @@ except FileNotFoundError:
     print("Warning: frogcave.ogg not found.")
 
 # Cardinal properties
-cardinal = cardinal_right or pygame.Surface((TILE_SIZE, TILE_SIZE))  # Fallback
+cardinal = cardinal_right or pygame.Surface((TILE_SIZE, TILE_SIZE))
 cardinal_rect = cardinal.get_rect(center=(WINDOW_WIDTH // 2, START_Y))
 target_pos = list(cardinal_rect.topleft)
 is_jumping = False
@@ -69,10 +70,10 @@ jump_timer = 0
 
 # Log properties
 logs = []
-for i in range(6):
+for i in range(3):
     log_rect = log_img.get_rect() if log_img else pygame.Rect(0, 0, LOG_WIDTH, TILE_SIZE)
     log_rect.x = random.randint(0, WINDOW_WIDTH - log_rect.width)
-    log_rect.y = RIVER_TOP + 20 + i * TILE_SIZE + 5
+    log_rect.y = RIVER_TOP + 20 + i * (TILE_SIZE * 2) + 5
     speed = (-1 if i % 2 == 0 else 1) * random.choice([1, 2])
     logs.append({"rect": log_rect, "speed": speed})
 
@@ -105,29 +106,31 @@ while running:
         elif event.type == pygame.KEYDOWN and not is_jumping:
             if event.key == pygame.K_LEFT:
                 cardinal = cardinal_left or cardinal
-                target_pos[0] = cardinal_rect.x - JUMP_DISTANCE  # Full tile left
+                target_pos[0] = cardinal_rect.x - JUMP_DISTANCE
                 is_jumping = True
             elif event.key == pygame.K_RIGHT:
                 cardinal = cardinal_right or cardinal
-                target_pos[0] = cardinal_rect.x + JUMP_DISTANCE  # Full tile right
+                target_pos[0] = cardinal_rect.x + JUMP_DISTANCE
                 is_jumping = True
             elif event.key == pygame.K_UP:
-                target_pos[1] = cardinal_rect.y - JUMP_DISTANCE  # Full tile up
+                target_pos[1] = cardinal_rect.y - JUMP_DISTANCE
                 is_jumping = True
             elif event.key == pygame.K_DOWN:
-                target_pos[1] = cardinal_rect.y + JUMP_DISTANCE  # Full tile down
+                target_pos[1] = cardinal_rect.y + JUMP_DISTANCE
                 is_jumping = True
-    # Smooth jumping (replace the existing jumping block)
+
+    # Smooth jumping
     if is_jumping:
         jump_timer += dt
-        progress = min(jump_timer / JUMP_DURATION, 1.0)  # 0 to 1 over 0.5s
-        start_pos = [cardinal_rect.x, cardinal_rect.y]  # Current position
+        progress = min(jump_timer / JUMP_DURATION, 1.0)
+        start_pos = [cardinal_rect.x, cardinal_rect.y]
         cardinal_rect.x = start_pos[0] + (target_pos[0] - start_pos[0]) * progress
         cardinal_rect.y = start_pos[1] + (target_pos[1] - start_pos[1]) * progress
         if progress >= 1.0:
             is_jumping = False
             jump_timer = 0
-            cardinal_rect.topleft = target_pos  # Snap to exact tile at end
+            cardinal_rect.topleft = target_pos
+
     # Update logs
     on_log = False
     for log in logs:
@@ -141,7 +144,7 @@ while running:
             cardinal_rect.x += log["speed"]
             target_pos[0] += log["speed"]
         if on_log:
-            target_pos[0] = cardinal_rect.x  # Sync target with new position
+            target_pos[0] = cardinal_rect.x
 
     # Update trucks
     for truck in trucks:
@@ -154,14 +157,15 @@ while running:
             game_over = True
 
     # Check water and goal
-    if RIVER_TOP <= cardinal_rect.y <= RIVER_BOTTOM and not on_log:
-        game_over = True
+    if not is_jumping:  # Only check water when jump is complete
+        if RIVER_TOP <= cardinal_rect.y <= RIVER_BOTTOM and not on_log:
+            game_over = True
     if cardinal_rect.colliderect(goal_rect):
         game_won = True
 
-    # Before drawing, keep cardinal in bounds (update this part)
+    # Keep cardinal in bounds
     cardinal_rect.clamp_ip(window.get_rect())
-    if not is_jumping:  # Only sync target when not jumping
+    if not is_jumping:
         target_pos = list(cardinal_rect.topleft)
 
     # Draw everything
