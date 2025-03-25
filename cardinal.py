@@ -1,25 +1,29 @@
 # Full updated code for context (merge this with your existing code)
 import pygame
 import random
+import math
 
 # Initialize Pygame
 pygame.init()
 
 # Constants
 WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+WINDOW_HEIGHT = 608
 TILE_SIZE = 32
 LOG_WIDTH = 100
-TRUCK_WIDTH = 64
+LOG_MULTIPLIER = 2
+TRUCK_WIDTH = TILE_SIZE * 2
 ROAD_WIDTH = 128
-ROAD_HEIGHT = 64
+ROAD_HEIGHT = TILE_SIZE * 3 - 16
+ROAD_OFFSET = TILE_SIZE * 2 - 16
+ROAD_TOP_OFFSET = TILE_SIZE 
 PLATFORM_WIDTH = 80
 PLATFORM_HEIGHT = 40
 RIVER_TOP = 300
-RIVER_BOTTOM = 500
-START_Y = 520
+RIVER_BOTTOM = WINDOW_HEIGHT - (TILE_SIZE * 3)
+START_Y = WINDOW_HEIGHT - (TILE_SIZE * 2) + 16
 GOAL_SIZE = 40
-JUMP_DISTANCE = TILE_SIZE * 2
+JUMP_DISTANCE = TILE_SIZE 
 JUMP_DURATION = 0.5  # seconds
 FPS = 60
 
@@ -27,6 +31,7 @@ FPS = 60
 LIGHT_GREEN = (144, 238, 144)
 DARK_GREY = (50, 50, 50)
 YELLOW = (255, 255, 0)
+WHITE = (255, 255, 255)
 
 # Set up the game window
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -43,7 +48,10 @@ def load_image(filename, size):
 
 cardinal_left = load_image("cardinal-left.png", (TILE_SIZE, TILE_SIZE))
 cardinal_right = load_image("cardinal-right.png", (TILE_SIZE, TILE_SIZE))
-log_img = load_image("log.png", (LOG_WIDTH, TILE_SIZE))
+trunk_img = load_image("wood-log-trunk.png", (TILE_SIZE * LOG_MULTIPLIER, TILE_SIZE - 2)) 
+trunk_face_img = load_image("wood-log-face.png", (TILE_SIZE, TILE_SIZE - 2)) 
+trunk_tail_img = load_image("wood-log-tail.png", (TILE_SIZE, TILE_SIZE - 2)) 
+log_img = load_image("log.png", (LOG_WIDTH, TILE_SIZE - 2))
 water_img = load_image("water.png", (TILE_SIZE, TILE_SIZE))
 water_top_img = load_image("water-top.png", (TILE_SIZE, TILE_SIZE))
 road_img_top = load_image("road-top.png", (ROAD_WIDTH, ROAD_HEIGHT))
@@ -52,7 +60,7 @@ grass_img = load_image("grass.png", (TILE_SIZE, TILE_SIZE))
 truck_img_right = load_image("truck-right.png", (TRUCK_WIDTH, TILE_SIZE))
 truck_img_left = load_image("truck-left.png", (TRUCK_WIDTH, TILE_SIZE))
 platform_img = load_image("platform.png", (PLATFORM_WIDTH, PLATFORM_HEIGHT))
-goal_img = load_image("goal.png", (TILE_SIZE, TILE_SIZE))
+goal_img = load_image("goal.png", (GOAL_SIZE + 10, GOAL_SIZE))
 
 # Load background music
 try:
@@ -70,11 +78,11 @@ jump_timer = 0
 
 # Log properties
 logs = []
-for i in range(3):
-    log_rect = log_img.get_rect() if log_img else pygame.Rect(0, 0, LOG_WIDTH, TILE_SIZE)
+for i in range(7):
+    log_rect = trunk_img.get_rect() if trunk_img else pygame.Rect(0, 0, LOG_WIDTH, TILE_SIZE)
     log_rect.x = random.randint(0, WINDOW_WIDTH - log_rect.width)
-    log_rect.y = RIVER_TOP + 20 + i * (TILE_SIZE * 2) + 5
-    speed = (-1 if i % 2 == 0 else 1) * random.choice([1, 2])
+    log_rect.y = RIVER_TOP + 16 + i * (TILE_SIZE) + 5
+    speed = (-1 if i % 2 == 0 else 1) * random.choice([2, 4])
     logs.append({"rect": log_rect, "speed": speed})
 
 # Truck properties
@@ -83,7 +91,7 @@ for i in range(4):
     truck_rect = truck_img_right.get_rect() if truck_img_right else pygame.Rect(0, 0, TRUCK_WIDTH, TILE_SIZE)
     truck_rect.y = TILE_SIZE * 2 + i * TILE_SIZE
     truck_rect.x = 0
-    speed = (-1 if i % 2 == 0 else 1) * random.choice([1, 5])
+    speed = (-1 if i % 2 == 0 else 1) * random.choice([3, 7])
     trucks.append({"rect": truck_rect, "speed": speed, "is_even": -1 if i % 2 == 0 else 1})
 
 # Goal area
@@ -179,13 +187,13 @@ while running:
     else:
         pygame.draw.rect(window, (0, 128, 0), (0, 0, WINDOW_WIDTH, RIVER_TOP))
         pygame.draw.rect(window, (0, 128, 0), (0, RIVER_BOTTOM, WINDOW_WIDTH, WINDOW_HEIGHT - RIVER_BOTTOM))
-
+        
     # Draw highway
     for x in range(0, WINDOW_WIDTH, ROAD_WIDTH):
         if road_img_top:
-            window.blit(road_img_top, (x, TILE_SIZE * 2))
+            window.blit(road_img_top, (x, ROAD_HEIGHT - ROAD_TOP_OFFSET))
         if road_img_bottom:
-            window.blit(road_img_bottom, (x, TILE_SIZE * 4 + 16))
+            window.blit(road_img_bottom, (x, ROAD_HEIGHT + ROAD_OFFSET))
 
     # Draw river
     if water_top_img:
@@ -193,13 +201,21 @@ while running:
             window.blit(water_top_img, (x, RIVER_TOP))
     if water_img:
         for x in range(0, WINDOW_WIDTH, TILE_SIZE):
-            for y in range(RIVER_TOP + TILE_SIZE, RIVER_BOTTOM, TILE_SIZE):
+            for y in range(RIVER_TOP + TILE_SIZE, RIVER_BOTTOM + TILE_SIZE, TILE_SIZE):
                 window.blit(water_img, (x, y))
 
     # Draw logs and trucks
     for log in logs:
-        if log_img:
-            window.blit(log_img, log["rect"])
+        if trunk_img:
+            window.blit(trunk_img, log["rect"])
+            # Calculate the new position for the face, offset by 16 pixels downward
+            face_x = log["rect"].x - 22
+            face_y = log["rect"].y
+            window.blit(trunk_face_img, (face_x, face_y))
+            tail_x = log["rect"].x + (TILE_SIZE * LOG_MULTIPLIER)
+            tail_y = log["rect"].y
+            window.blit(trunk_tail_img, (tail_x, tail_y))
+            # Draw the face at the offset position
     for truck in trucks:
         if truck["is_even"] == -1 and truck_img_left:
             window.blit(truck_img_left, truck["rect"])
@@ -212,11 +228,16 @@ while running:
     else:
         pygame.draw.rect(window, (0, 255, 0), goal_rect)
     if platform_img:
-        window.blit(platform_img, (WINDOW_WIDTH // 2 - PLATFORM_WIDTH // 2, START_Y))
+        window.blit(platform_img, (WINDOW_WIDTH // 2 - PLATFORM_WIDTH // 2, START_Y - (TILE_SIZE / 2)))
     else:
         pygame.draw.rect(window, (150, 150, 150), (WINDOW_WIDTH // 2 - PLATFORM_WIDTH // 2, START_Y, PLATFORM_WIDTH, PLATFORM_HEIGHT))
 
+    #for i in range(math.floor(WINDOW_HEIGHT / 32)):
+    #    pygame.draw.rect(window, WHITE, (0, i * 32, WINDOW_WIDTH, 1))
+
+
     # Draw cardinal
+    # pygame.draw.rect(window, (128, 0, 0), cardinal_rect)
     window.blit(cardinal, cardinal_rect)
 
     # Game over or win
